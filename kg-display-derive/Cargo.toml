@@ -14,7 +14,7 @@ workspace = ".."
 proc-macro = true
 
 [dependencies]
-kg-display = { path = "../kg-display" }
+kg-display = { version = "0.1", path = "../kg-display" }
 kg-utils = "0.2"
 proc-macro2 = { version = "*", features = ["nightly"] }
 quote = "*"
