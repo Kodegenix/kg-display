@@ -3,11 +3,8 @@
 [![Latest Version](https://img.shields.io/crates/v/kg-display.svg)](https://crates.io/crates/kg-display)
 [![Documentation](https://docs.rs/kg-display/badge.svg)](https://docs.rs/kg-display)
 
-Set of crates for ergonomic implementation of `std::fmt::Display` trait.
-
-* crate `kg-display` contains format string parser implemented in [nom](https://github.com/Geal/nom), as well 
-as other utility types.
-* crate `kg-display-derive` implements macro for `#[derive(Display)]`
+Format string parser implemented in [nom](https://github.com/Geal/nom), as well as other utility types for implementing
+`std::fmt::Display` trait.
 
 ## License
 
