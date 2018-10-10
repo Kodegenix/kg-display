@@ -1,0 +1,16 @@
+[package]
+name = "kg-display"
+version = "0.1.0"
+authors = ["Jakub Chłapiński <jakub.chlapinski@kodegenix.pl>"]
+description = """
+Parser for format strings, and other utilities for implementing std::fmt::Display.
+"""
+readme = "../README.md"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/Kodegenix/kg-display"
+workspace = ".."
+
+[lib]
+
+[dependencies]
+nom = "4.1"
