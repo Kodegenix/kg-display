@@ -9,6 +9,7 @@ readme = "README.md"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/Kodegenix/kg-display"
 workspace = ".."
+edition = "2018"
 
 [lib]
 proc-macro = true

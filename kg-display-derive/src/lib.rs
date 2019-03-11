@@ -1,15 +1,7 @@
-#![feature(try_from)]
-
-extern crate proc_macro;
-extern crate proc_macro2;
-extern crate syn;
 #[macro_use]
 extern crate synstructure;
 #[macro_use]
 extern crate quote;
-
-extern crate kg_utils;
-extern crate kg_display;
 
 use proc_macro2::{Ident, Span};
 use std::collections::HashMap;
