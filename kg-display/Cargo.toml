@@ -14,4 +14,4 @@ edition = "2018"
 [lib]
 
 [dependencies]
-nom = "4.1"
+nom = "4.2.3"
