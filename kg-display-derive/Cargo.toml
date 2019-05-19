@@ -20,4 +20,4 @@ kg-utils = "0.2.3"
 proc-macro2 = { version = "0.4.30", features = ["nightly"] }
 quote = "0.6.12"
 syn = { version = "0.15.34", features = ["full"] }
-synstructure = "0.10.1"
+synstructure = "0.10.2"
