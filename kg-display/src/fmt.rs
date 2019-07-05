@@ -1,7 +1,3 @@
-use super::*;
-
-use nom::types::CompleteStr;
-
 use std::str::FromStr;
 use std::convert::TryFrom;
 
@@ -317,124 +313,128 @@ impl std::fmt::Display for FormatString {
 }
 
 
-named!(parse_identifier<CompleteStr, CompleteStr>,
-    recognize!(tuple!(take_while1!(|b: char| b == '_' || b.is_ascii_alphabetic()), take_while!(|b: char| b == '_' || b.is_ascii_alphanumeric())))
-);
+use nom::IResult;
+use nom::combinator::{recognize, map, opt};
+use nom::sequence::{tuple, terminated, preceded};
+use nom::bytes::complete::{take, take_while1, take_while, tag, is_not};
+use nom::branch::alt;
+use nom::character::complete::{digit1, one_of, char};
+use nom::multi::many0;
 
-named!(parse_argument<CompleteStr, Argument>,
-    alt!(
-        map!(nom::digit, |i| Argument::Index(i.parse().unwrap())) |
-        map!(parse_identifier, |n| Argument::Name(n.to_string()))
-    )
-);
 
-named!(parse_fill<CompleteStr, char>,
-    map!(take!(1), |s| s.chars().next().unwrap())
-);
+fn parse_identifier(i: &str) -> IResult<&str, &str> {
+    recognize(tuple((take_while1(|b: char| b == '_' || b.is_ascii_alphabetic()), take_while(|b: char| b == '_' || b.is_ascii_alphanumeric()))))(i)
+}
 
-named!(parse_align<CompleteStr, Align>,
-    map!(one_of!("<>^"), |a| Align::try_from(a).unwrap())
-);
+fn parse_argument(i: &str) -> IResult<&str, Argument> {
+    alt((map(digit1, |index: &str| Argument::Index(index.parse().unwrap())), map(parse_identifier, |id: &str| Argument::Name(id.to_string()))))(i)
+}
 
-named!(parse_fill_align<CompleteStr, FillAlign>,
-    alt!(
-        map!(tuple!(parse_fill, parse_align), |(fill, align)| FillAlign {
+fn parse_fill(i: &str) -> IResult<&str, char> {
+    map(take(1usize), |s: &str| s.chars().next().unwrap())(i)
+}
+
+fn parse_align(i: &str) -> IResult<&str, Align> {
+    map(one_of("<>^"), |a| Align::try_from(a).unwrap())(i)
+}
+
+fn parse_fill_align(i: &str) -> IResult<&str, FillAlign> {
+    alt((
+        map(tuple((parse_fill, parse_align)), |(fill, align)| FillAlign {
             fill: Some(fill),
             align,
-        }) |
-        map!(parse_align, |align| FillAlign {
+        }),
+        map(parse_align, |align| FillAlign {
             fill: None,
             align,
         })
-    )
-);
+    ))(i)
+}
 
-named!(parse_sign<CompleteStr, Sign>,
-    map!(one_of!("-+"), |s| Sign::try_from(s).unwrap())
-);
+fn parse_sign(i: &str) -> IResult<&str, Sign> {
+    map(one_of("-+"), |s| Sign::try_from(s).unwrap())(i)
+}
 
-named!(parse_alter<CompleteStr, bool>,
-    map!(opt!(char!('#')), |o| o.is_some())
-);
+fn parse_alter(i: &str) -> IResult<&str, bool> {
+    map(opt(char('#')), |o| o.is_some())(i)
+}
 
-named!(parse_zero<CompleteStr, bool>,
-    map!(opt!(char!('0')), |o| o.is_some())
-);
+fn parse_zero(i: &str) -> IResult<&str, bool> {
+    map(opt(char('0')), |o| o.is_some())(i)
+}
 
-named!(parse_count<CompleteStr, Count>,
-    alt!(
-        map!(terminated!(parse_argument, char!('$')), |a| Count::Argument(a)) |
-        map!(nom::digit, |v| Count::Value(v.parse().unwrap()))
-    )
-);
+fn parse_count(i: &str) -> IResult<&str, Count> {
+    alt((
+        map(terminated(parse_argument, char('$')), |a| Count::Argument(a)),
+        map(digit1, |v: &str| Count::Value(v.parse().unwrap()))
+    ))(i)
+}
 
-named!(parse_precision<CompleteStr, Precision>,
-    alt!(
-        map!(char!('*'), |_| Precision::Star) |
-        map!(parse_count, |c| Precision::Count(c))
-    )
-);
+fn parse_precision(i: &str) -> IResult<&str, Precision> {
+    alt((
+        map(char('*'), |_| Precision::Star),
+        map(parse_count, |c| Precision::Count(c))
+    ))(i)
+}
 
-named!(parse_format_type<CompleteStr, FormatType>,
-    map!(opt!(alt!(
-        tag!("?") |
-        tag!("x?") |
-        tag!("X?") |
-        tag!("o") |
-        tag!("x") |
-        tag!("X") |
-        tag!("p") |
-        tag!("b") |
-        tag!("e") |
-        tag!("E"))),
-        |s| FormatType::from_str(&s.unwrap_or("".into())).unwrap())
-);
+fn parse_format_type(i: &str) -> IResult<&str, FormatType> {
+    map(opt(alt((
+        tag("?"),
+        tag("x?"),
+        tag("X?"),
+        tag("o"),
+        tag("x"),
+        tag("X"),
+        tag("p"),
+        tag("b"),
+        tag("e"),
+        tag("E")
+    ))), |s| FormatType::from_str(s.unwrap_or("".into())).unwrap())(i)
+}
 
-named!(parse_format_spec<CompleteStr, FormatSpec>,
-    do_parse!(
-        char!(':') >>
-        fill_align: opt!(parse_fill_align) >>
-        sign: opt!(parse_sign) >>
-        alter: parse_alter >>
-        zero: parse_zero >>
-        width: opt!(parse_count) >>
-        precision: opt!(preceded!(char!('.'), parse_precision)) >>
-        format_type: parse_format_type >>
-        (FormatSpec {
-            fill_align: fill_align,
-            sign: sign,
-            alter: alter,
-            zero: zero,
-            width: width,
-            precision: precision,
-            format_type: format_type,
-        })
-    )
-);
+fn parse_format_spec(i: &str) -> IResult<&str, FormatSpec> {
+    let (i, _) = char(':')(i)?;
+    let (i, fill_align) = opt(parse_fill_align)(i)?;
+    let (i, sign) = opt(parse_sign)(i)?;
+    let (i, alter) = parse_alter(i)?;
+    let (i, zero) = parse_zero(i)?;
+    let (i, width) = opt(parse_count)(i)?;
+    let (i, precision) = opt(preceded(char('.'), parse_precision))(i)?;
+    let (i, format_type) = parse_format_type(i)?;
 
-named!(parse_format<CompleteStr, Format>,
-    do_parse!(
-        char!('{') >>
-        arg: opt!(parse_argument) >>
-        spec: opt!(parse_format_spec) >>
-        char!('}') >>
-        (Format {
-            arg: arg.unwrap_or(Argument::Next),
-            spec,
-        })
-    )
-);
+    Ok((i, FormatSpec {
+        fill_align,
+        sign,
+        alter,
+        zero,
+        width,
+        precision,
+        format_type,
+    }))
+}
 
-named!(parse_format_string<CompleteStr, FormatString>,
-    map!(many0!(
-        alt!(
-            map!(is_not!("{}"), |s| FormatStringItem::Text(s.to_string())) |
-            map!(tag!("{{"), |_| FormatStringItem::Escape('{')) |
-            map!(tag!("}}"), |_| FormatStringItem::Escape('}')) |
-            map!(parse_format, |f| FormatStringItem::Format(f))
-        )
-    ), |items| FormatString(items))
-);
+fn parse_format(i: &str) -> IResult<&str, Format> {
+    let (i, _) = char('{')(i)?;
+    let (i, arg) = opt(parse_argument)(i)?;
+    let (i, spec) = opt(parse_format_spec)(i)?;
+    let (i, _) = char('}')(i)?;
+
+    Ok((i, Format {
+        arg: arg.unwrap_or(Argument::Next),
+        spec,
+    }))
+}
+
+fn parse_format_string(i: &str) -> IResult<&str, FormatString> {
+    map(many0(
+        alt((
+            map(is_not("{}"), |s: &str| FormatStringItem::Text(s.to_string())),
+            map(tag("{{"), |_| FormatStringItem::Escape('{')),
+            map(tag("}}"), |_| FormatStringItem::Escape('}')),
+            map(parse_format, |f| FormatStringItem::Format(f)),
+        ))
+    ), |items| FormatString(items))(i)
+}
 
 
 #[cfg(test)]
@@ -446,7 +446,6 @@ mod tests {
         let input = "aaa {{{}}} {username:#.2$?} dsd";
         let f = parse_format_string(input.into()).unwrap().1;
         let out = f.to_string();
-
         assert_eq!(input, out);
     }
 }

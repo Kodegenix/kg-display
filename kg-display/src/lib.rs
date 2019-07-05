@@ -1,6 +1,3 @@
-#[macro_use]
-extern crate nom;
-
 pub mod fmt;
 
 use std::ops::{Deref, DerefMut};
