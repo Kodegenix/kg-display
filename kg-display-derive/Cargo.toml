@@ -15,7 +15,7 @@ edition = "2018"
 proc-macro = true
 
 [dependencies]
-kg-display = { path = "../kg-display" }
+kg-display = { version = "0.1.2", path = "../kg-display" }
 kg-utils = "0.2.4"
 proc-macro2 = { version = "0.4.30", features = ["nightly"] }
 quote = "0.6.12"
