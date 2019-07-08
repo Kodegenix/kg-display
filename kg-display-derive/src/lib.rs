@@ -1,14 +1,12 @@
+extern crate quote;
 #[macro_use]
 extern crate synstructure;
-#[macro_use]
-extern crate quote;
 
-use proc_macro2::{Ident, Span};
 use std::collections::HashMap;
 
 use kg_display::fmt::*;
 use kg_utils::collections::SparseSet;
-
+use proc_macro2::{Ident, Span};
 
 decl_derive!([Display, attributes(display)] => display_derive);
 

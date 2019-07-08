@@ -1,6 +1,6 @@
-pub mod fmt;
-
 use std::ops::{Deref, DerefMut};
+
+pub mod fmt;
 
 pub struct PrettyPrinter<'a, 'b: 'a> {
     padding: &'a str,

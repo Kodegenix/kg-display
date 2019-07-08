@@ -1,6 +1,13 @@
-use std::str::FromStr;
 use std::convert::TryFrom;
+use std::str::FromStr;
 
+use nom::branch::alt;
+use nom::bytes::complete::{is_not, tag, take, take_while, take_while1};
+use nom::character::complete::{char, digit1, one_of};
+use nom::combinator::{map, opt, recognize};
+use nom::IResult;
+use nom::multi::many0;
+use nom::sequence::{preceded, terminated, tuple};
 
 #[derive(Debug, Clone)]
 pub struct Format {
@@ -311,15 +318,6 @@ impl std::fmt::Display for FormatString {
         Ok(())
     }
 }
-
-
-use nom::IResult;
-use nom::combinator::{recognize, map, opt};
-use nom::sequence::{tuple, terminated, preceded};
-use nom::bytes::complete::{take, take_while1, take_while, tag, is_not};
-use nom::branch::alt;
-use nom::character::complete::{digit1, one_of, char};
-use nom::multi::many0;
 
 
 fn parse_identifier(i: &str) -> IResult<&str, &str> {
