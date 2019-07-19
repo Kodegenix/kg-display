@@ -1,6 +1,6 @@
 # kg-display
 
-[![Build Status](https://travis-ci.com/Kodegenix/kg-display.svg?branch=master)](https://travis-ci.com/Kodegenix/kg-display)
+[![Build Status](https://travis-ci.org/Kodegenix/kg-display.svg?branch=master)](https://travis-ci.org/Kodegenix/kg-display)
 
 Set of crates for ergonomic implementation of `std::fmt::Display` trait.
 
