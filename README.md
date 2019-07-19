@@ -1,5 +1,7 @@
 # kg-display
 
+[![Build Status](https://travis-ci.com/Kodegenix/kg-display.svg?branch=master)](https://travis-ci.com/Kodegenix/kg-display)
+
 Set of crates for ergonomic implementation of `std::fmt::Display` trait.
 
 * crate [`kg-display`](kg-display) contains format string parser implemented in [nom](https://github.com/Geal/nom), as well 
