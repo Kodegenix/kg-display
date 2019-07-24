@@ -16,8 +16,8 @@ proc-macro = true
 
 [dependencies]
 kg-display = { version = "0.1.2", path = "../kg-display" }
-kg-utils = "0.2.4"
+kg-utils = "0.3.0"
 proc-macro2 = { version = "0.4.30", features = ["nightly"] }
-quote = "0.6.12"
-syn = { version = "0.15.39", features = ["full"] }
+quote = "0.6.13"
+syn = { version = "0.15.41", features = ["full"] }
 synstructure = "0.11.0"
