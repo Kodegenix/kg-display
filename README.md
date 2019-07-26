@@ -9,6 +9,17 @@ Set of crates for ergonomic implementation of `std::fmt::Display` trait.
 as other utility types.
 * crate [`kg-display-derive`](kg-display-derive) implements macro for `#[derive(Display)]`
 
+## Builds statuses for Rust channels
+
+| stable            | beta              | nightly           |
+|-------------------|-------------------|-------------------|
+| [![Build1][3]][4] | [![Build2][2]][4] | [![Build3][1]][4] |
+
+[1]: https://travis-matrix-badges.herokuapp.com/repos/kodegenix/kg-display/branches/master/1
+[2]: https://travis-matrix-badges.herokuapp.com/repos/kodegenix/kg-display/branches/master/2
+[3]: https://travis-matrix-badges.herokuapp.com/repos/kodegenix/kg-display/branches/master/3
+[4]: https://travis-ci.org/kodegenix/kg-display
+
 ## License
 
 Licensed under either of
