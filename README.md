@@ -1,7 +1,7 @@
 # kg-display
 
 [![Build Status](https://travis-ci.org/Kodegenix/kg-display.svg?branch=master)](https://travis-ci.org/Kodegenix/kg-display)
-[![Coverage Status](https://coveralls.io/repos/github/Kodegenix/kg-display/badge.svg?branch=master)](https://coveralls.io/github/Kodegenix/kg-display?branch=master)
+[![codecov](https://codecov.io/gh/kodegenix/kg-display/branch/master/graph/badge.svg)](https://codecov.io/gh/kodegenix/kg-display)
 
 Set of crates for ergonomic implementation of `std::fmt::Display` trait.
 
