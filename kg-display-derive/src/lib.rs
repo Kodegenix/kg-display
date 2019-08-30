@@ -44,9 +44,11 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
         let params: Vec<(String, String)> = {
             let mut params = HashMap::new();
             for p in disp.iter() {
-                if let &syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref ident, lit: syn::Lit::Str(ref s), .. })) = p {
-                    if ident != "fmt" && ident != "alt" {
-                        params.insert(ident.to_string(), s.value());
+                if let &syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref path, lit: syn::Lit::Str(ref s), .. })) = p {
+                    if let Some(ident) = path.get_ident() {
+                        if ident != "fmt" && ident != "alt" {
+                            params.insert(ident.to_string(), s.value());
+                        }
                     }
                 }
             }
@@ -54,8 +56,18 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
         };
 
         let fmt = match disp.get(0).unwrap() {
-            &syn::NestedMeta::Literal(syn::Lit::Str(ref s)) => s.value(),
-            &syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref ident, lit: syn::Lit::Str(ref s), .. })) if ident == "fmt" => s.value(),
+            &syn::NestedMeta::Lit(syn::Lit::Str(ref s)) => s.value(),
+            &syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref path, lit: syn::Lit::Str(ref s), .. })) => {
+                if let Some(ident) = path.get_ident() {
+                    if ident == "fmt" {
+                        s.value()
+                    } else {
+                        panic!(err_msg("invalid display(...) attribute format", v));
+                    }
+                } else {
+                    panic!(err_msg("invalid display(...) attribute format", v));
+                }
+            }
             _ => panic!(err_msg("invalid display(...) attribute format", v)),
         };
 
@@ -83,8 +95,18 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
         let alt = {
             let fmt = if let Some(fmt) = disp.get(1) {
                 match fmt {
-                    &syn::NestedMeta::Literal(syn::Lit::Str(ref s)) => Some(s.value()),
-                    &syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref ident, lit: syn::Lit::Str(ref s), .. })) if ident == "alt" => Some(s.value()),
+                    &syn::NestedMeta::Lit(syn::Lit::Str(ref s)) => Some(s.value()),
+                    &syn::NestedMeta::Meta(syn::Meta::NameValue(syn::MetaNameValue { ref path, lit: syn::Lit::Str(ref s), .. })) => {
+                        if let Some(ident) = path.get_ident() {
+                            if ident == "alt" {
+                                Some(s.value())
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    },
                     _ => None,
                 }
             } else {
@@ -222,10 +244,14 @@ fn find_display_attr(attrs: &[syn::Attribute]) -> Option<Vec<syn::NestedMeta>> {
     for attr in attrs {
         if attr.path != doc_path && attr.style == syn::AttrStyle::Outer {
             let disp_meta = {
-                let m = attr.interpret_meta();
-                if let Some(syn::Meta::List(syn::MetaList { ident, nested, .. })) = m {
-                    if ident == "display" {
-                        Some(nested.into_iter().collect())
+                let m = attr.parse_meta();
+                if let Ok(syn::Meta::List(syn::MetaList { path, nested, .. })) = m {
+                    if let Some(ident) = path.get_ident() {
+                        if ident == "display" {
+                            Some(nested.into_iter().collect())
+                        } else {
+                            None
+                        }
                     } else {
                         None
                     }
