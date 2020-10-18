@@ -71,8 +71,8 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
             _ => panic!(err_msg("invalid display(...) attribute format", v)),
         };
 
-        let mut bindings_set: SparseSet<usize> = SparseSet::new(v.bindings().len());
-        let mut params_set: SparseSet<usize> = SparseSet::new(params.len());
+        let mut bindings_set: SparseSet<usize> = SparseSet::with_capacity(v.bindings().len());
+        let mut params_set: SparseSet<usize> = SparseSet::with_capacity(params.len());
 
         let fmt_str = FormatString::parse(&fmt).expect(&err_msg("invalid format string", v));
         fmt_str.each_argument(|arg| {
@@ -114,8 +114,8 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
             };
 
             if let Some(fmt) = fmt {
-                let mut bindings_set: SparseSet<usize> = SparseSet::new(v.bindings().len());
-                let mut params_set: SparseSet<usize> = SparseSet::new(params.len());
+                let mut bindings_set: SparseSet<usize> = SparseSet::with_capacity(v.bindings().len());
+                let mut params_set: SparseSet<usize> = SparseSet::with_capacity(params.len());
 
                 let fmt_str = FormatString::parse(&fmt).expect(&err_msg("invalid format string", v));
                 fmt_str.each_argument(|arg| {
