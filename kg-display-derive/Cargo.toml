@@ -19,5 +19,5 @@ kg-display = { version = "0.1.2", path = "../kg-display" }
 kg-utils = "0.4.0"
 proc-macro2 = { version = "1.0.24", features = ["nightly"] }
 quote = "1.0.7"
-syn = { version = "1.0.42", features = ["full"] }
+syn = { version = "1.0.45", features = ["full"] }
 synstructure = "0.12.4"
