@@ -12,11 +12,11 @@ enum TestEnum {
         field1: String,
         field2: usize,
     },
-    #[display("tuple with fields - {a0}, {a2}")]
+    #[display("tuple with fields - {_0}, {_2}")]
     Tuple(String, usize, bool),
     #[display("plain")]
     Plain,
-    #[display(fmt = "elements: {elems}", elems = "ListDisplay(&a0)")]
+    #[display(fmt = "elements: {elems}", elems = "ListDisplay(&_0)")]
     Elems(Vec<String>),
 }
 

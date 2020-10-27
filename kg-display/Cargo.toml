@@ -7,7 +7,7 @@ Parser for format strings, and other utilities for implementing std::fmt::Displa
 """
 readme = "README.md"
 license = "Apache-2.0 OR MIT"
-repository = "https://github.com/Kodegenix/kg-display"
+repository = "https://github.com/kodegenix/kg-display"
 workspace = ".."
 edition = "2018"
 

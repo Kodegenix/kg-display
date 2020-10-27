@@ -27,7 +27,7 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
 
     for ref mut v in s.variants_mut() {
         v.binding_name(|field, i| {
-            field.ident.clone().unwrap_or(Ident::new(&format!("a{}", i), Span::call_site()))
+            field.ident.clone().unwrap_or(Ident::new(&format!("_{}", i), Span::call_site()))
         });
 
         let disp = match find_display_attr(v.ast().attrs) {
