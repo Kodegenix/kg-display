@@ -33,12 +33,12 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
         let disp = match find_display_attr(v.ast().attrs) {
             Some(m) => m,
             None => {
-                panic!(err_msg("missing display(...) attribute", v));
+                panic!("{}", err_msg("missing display(...) attribute", v));
             }
         };
 
         if disp.is_empty() {
-            panic!(err_msg("empty display(...) attribute", v));
+            panic!("{}", err_msg("empty display(...) attribute", v));
         }
 
         let params: Vec<(String, String)> = {
@@ -62,13 +62,13 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
                     if ident == "fmt" {
                         s.value()
                     } else {
-                        panic!(err_msg("invalid display(...) attribute format", v));
+                        panic!("{}", err_msg("invalid display(...) attribute format", v));
                     }
                 } else {
-                    panic!(err_msg("invalid display(...) attribute format", v));
+                    panic!("{}", err_msg("invalid display(...) attribute format", v));
                 }
             }
-            _ => panic!(err_msg("invalid display(...) attribute format", v)),
+            _ => panic!("{}", err_msg("invalid display(...) attribute format", v)),
         };
 
         let mut bindings_set: SparseSet<usize> = SparseSet::with_capacity(v.bindings().len());
@@ -77,15 +77,15 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
         let fmt_str = FormatString::parse(&fmt).expect(&err_msg("invalid format string", v));
         fmt_str.each_argument(|arg| {
             match *arg {
-                Argument::Next => panic!(err_msg("default positional argument found, only named arguments are supported", v)),
-                Argument::Index(_) => panic!(err_msg("positional argument found, only named arguments are supported", v)),
+                Argument::Next => panic!("{}", err_msg("default positional argument found, only named arguments are supported", v)),
+                Argument::Index(_) => panic!("{}", err_msg("positional argument found, only named arguments are supported", v)),
                 Argument::Name(ref name) => {
                     if let Some((i, _)) = params.iter().enumerate().find(|(_, p)| &p.0 == name) {
                         params_set.insert(i);
                     } else if let Some((i, _)) = v.bindings().iter().enumerate().find(|(_, bi)| bi.binding == name) {
                         bindings_set.insert(i);
                     } else {
-                        panic!(err_msg(format!("unknown argument '{}'", name), v));
+                        panic!("{}", err_msg(format!("unknown argument '{}'", name), v));
                     }
                 },
             }
@@ -120,15 +120,15 @@ fn display_derive(mut s: synstructure::Structure) -> proc_macro2::TokenStream {
                 let fmt_str = FormatString::parse(&fmt).expect(&err_msg("invalid format string", v));
                 fmt_str.each_argument(|arg| {
                     match *arg {
-                        Argument::Next => panic!(err_msg("default positional argument found, only named arguments are supported", v)),
-                        Argument::Index(_) => panic!(err_msg("positional argument found, only named arguments are supported", v)),
+                        Argument::Next => panic!("{}", err_msg("default positional argument found, only named arguments are supported", v)),
+                        Argument::Index(_) => panic!("{}", err_msg("positional argument found, only named arguments are supported", v)),
                         Argument::Name(ref name) => {
                             if let Some((i, _)) = params.iter().enumerate().find(|(_, p)| &p.0 == name) {
                                 params_set.insert(i);
                             } else if let Some((i, _)) = v.bindings().iter().enumerate().find(|(_, bi)| bi.binding == name) {
                                 bindings_set.insert(i);
                             } else {
-                                panic!(err_msg(format!("unknown argument '{}'", name), v));
+                                panic!("{}", err_msg(format!("unknown argument '{}'", name), v));
                             }
                         },
                     }
