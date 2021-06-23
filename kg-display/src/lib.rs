@@ -1,3 +1,6 @@
+#![feature(char_indices_offset)]
+#![feature(iter_advance_by)]
+
 use std::ops::{Deref, DerefMut};
 
 pub mod fmt;

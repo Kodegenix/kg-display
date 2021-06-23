@@ -1,18 +1,32 @@
 use std::convert::TryFrom;
-use std::str::FromStr;
-
-use nom::branch::alt;
-use nom::bytes::complete::{is_not, tag, take, take_while, take_while1};
-use nom::character::complete::{char, digit1, one_of};
-use nom::combinator::{map, opt, recognize};
-use nom::IResult;
-use nom::multi::many0;
-use nom::sequence::{preceded, terminated, tuple};
+use std::str::{FromStr, CharIndices};
 
 #[derive(Debug, Clone)]
 pub struct Format {
     arg: Argument,
     spec: Option<FormatSpec>,
+}
+
+impl Format {
+    fn from_chars(chars: &mut CharIndices) -> Result<Format, String> {
+        let mut f = Format {
+            arg: Argument::Next,
+            spec: None,
+        };
+        if let Some((_, '{')) = chars.next() {
+            f.arg = Argument::from_chars(chars)?;
+        } else {
+            return Err(format!("format must start with '{{'"));
+        }
+        while let Some((i, c)) = chars.next() {
+            match c {
+                '}' => return Ok(f),
+                ':' => f.spec = Some(FormatSpec::from_chars(chars)?),
+                _ => return Err(format!("unexpected char '{}' at position {}", c, i)),
+            }
+        }
+        Err(format!("unexpected end of input"))
+    }
 }
 
 impl std::fmt::Display for Format {
@@ -33,6 +47,45 @@ pub enum Argument {
     Next,
     Index(usize),
     Name(String),
+}
+
+impl Argument {
+    fn from_chars(chars: &mut CharIndices) -> Result<Argument, String> {
+        let off = chars.offset();
+        let str = chars.as_str();
+        let mut prev = chars.clone();
+        let mut arg = Argument::Next;
+        while let Some((_, c)) = chars.next() {
+            match c {
+                c if c.is_ascii_digit() => {
+                    match arg {
+                        Argument::Next => arg = Argument::Index(0),
+                        _ => {},
+                    }
+                }
+                c if c == '_' || c.is_ascii_alphabetic() => {
+                    match arg {
+                        Argument::Next => arg = Argument::Name(String::new()),
+                        Argument::Index(_) => break,
+                        Argument::Name(_) => {},
+                    }
+                }
+                _ => break,
+            }
+            prev = chars.clone();
+        }
+        *chars = prev;
+        match arg {
+            Argument::Next => {},
+            Argument::Index(ref mut index) => {
+                *index = str[.. chars.offset() - off].parse::<usize>().map_err(|e| e.to_string())?;
+            }
+            Argument::Name(ref mut name) => {
+                name.push_str(&str[.. chars.offset() - off]);
+            }
+        }
+        return Ok(arg);
+    }
 }
 
 impl std::fmt::Display for Argument {
@@ -89,6 +142,34 @@ pub struct FillAlign {
     align: Align,
 }
 
+impl FillAlign {
+    fn from_chars_opt(chars: &mut CharIndices) -> Result<Option<FillAlign>, String> {
+        let prev = chars.clone();
+        let mut step = 0;
+        let mut fill = None;
+        while let Some((_, c)) = chars.next() {
+            match c {
+                '^' | '<' | '>' => {
+                    let align = Align::try_from(c).unwrap();
+                    return Ok(Some(FillAlign {
+                        fill,
+                        align,
+                    }));
+                }
+                _ if step == 0 => {
+                    fill = Some(c);
+                    step += 1;
+                }
+                _ => {
+                    *chars = prev;
+                    return Ok(None);
+                }
+            }
+        }
+        Ok(None)
+    }
+}
+
 impl std::fmt::Display for FillAlign {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(c) = self.fill {
@@ -103,6 +184,22 @@ impl std::fmt::Display for FillAlign {
 pub enum Sign {
     Plus,
     Minus,
+}
+
+impl Sign {
+    fn from_chars_opt(chars: &mut CharIndices) -> Result<Option<Sign>, String> {
+        let prev = chars.clone();
+        if let Some((_, c)) = chars.next() {
+            return match Sign::try_from(c) {
+                Ok(s) => Ok(Some(s)),
+                Err(_) => {
+                    *chars = prev;
+                    Ok(None)
+                }
+            }
+        }
+        Ok(None)
+    }
 }
 
 impl std::fmt::Display for Sign {
@@ -133,6 +230,25 @@ pub enum Precision {
     Star,
 }
 
+impl Precision {
+    fn from_chars_opt(chars: &mut CharIndices) -> Result<Option<Precision>, String> {
+        let prev = chars.clone();
+        if let Some((_, c)) = chars.next() {
+            return match c {
+                '*' => Ok(Some(Precision::Star)),
+                _ => {
+                    *chars = prev;
+                    match Count::from_chars_opt(chars)? {
+                        Some(count) => Ok(Some(Precision::Count(count))),
+                        None => Ok(None),
+                    }
+                }
+            }
+        }
+        Ok(None)
+    }
+}
+
 impl std::fmt::Display for Precision {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
@@ -147,6 +263,36 @@ impl std::fmt::Display for Precision {
 pub enum Count {
     Argument(Argument),
     Value(usize),
+}
+
+impl Count {
+    fn from_chars_opt(chars: &mut CharIndices) -> Result<Option<Count>, String> {
+        let prev = chars.clone();
+        let arg = Argument::from_chars(chars)?;
+
+        let p = chars.clone();
+        let arg_suffix = if let Some((_, '$')) = chars.next() {
+            true
+        } else {
+            *chars = p;
+            false
+        };
+
+        match arg {
+            Argument::Next => Ok(None),
+            Argument::Index(index) => if arg_suffix {
+                Ok(Some(Count::Argument(arg)))
+            } else {
+                Ok(Some(Count::Value(index)))
+            }
+            Argument::Name(_) => if arg_suffix {
+                Ok(Some(Count::Argument(arg)))
+            } else {
+                *chars = prev;
+                Ok(None)
+            }
+        }
+    }
 }
 
 impl std::fmt::Display for Count {
@@ -172,6 +318,24 @@ pub enum FormatType {
     Binary,
     LowerExp,
     UpperExp,
+}
+
+impl FormatType {
+    fn from_chars(chars: &mut CharIndices) -> Result<FormatType, String> {
+        let mut prev = chars.clone();
+        let str = chars.as_str();
+        let off = chars.offset();
+        while let Some((_, c)) = chars.next() {
+            if c == '}' {
+                *chars = prev;
+                break;
+            } else {
+                prev = chars.clone();
+            }
+        }
+        let s = &str[.. chars.offset() - off];
+        FormatType::from_str(s).map_err(|_| format!("unrecognized value type: '{}'", s))
+    }
 }
 
 impl std::fmt::Display for FormatType {
@@ -225,6 +389,55 @@ pub struct FormatSpec {
     format_type: FormatType,
 }
 
+impl FormatSpec {
+    fn from_chars(chars: &mut CharIndices) -> Result<FormatSpec, String> {
+        let mut prev = chars.clone();
+        let mut spec = FormatSpec {
+            fill_align: FillAlign::from_chars_opt(chars)?,
+            sign: Sign::from_chars_opt(chars)?,
+            alter: false,
+            zero: false,
+            width: None,
+            precision: None,
+            format_type: FormatType::Display,
+        };
+        let mut step = 0;
+        while let Some((i, c)) = chars.next() {
+            match c {
+                '}' => {
+                    *chars = prev;
+                    return Ok(spec);
+                }
+                '#' if step == 0 => {
+                    spec.alter = true;
+                    step += 1;
+                }
+                '0' if step < 2 => {
+                    spec.zero = true;
+                    step = 2;
+                }
+                _ if step < 3 => {
+                    *chars = prev;
+                    spec.width = Count::from_chars_opt(chars)?;
+                    step = 3;
+                }
+                '.' if step < 4 => {
+                    spec.precision = Precision::from_chars_opt(chars)?;
+                    step = 4;
+                }
+                _ if step < 5 => {
+                    *chars = prev;
+                    spec.format_type = FormatType::from_chars(chars)?;
+                    step = 5;
+                }
+                _ => return Err(format!("unexpected char '{}' at position {}", c, i))
+            }
+            prev = chars.clone();
+        }
+        Err(format!("unexpected end of input"))
+    }
+}
+
 impl std::fmt::Display for FormatSpec {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         if let Some(a) = self.fill_align {
@@ -272,11 +485,51 @@ impl std::fmt::Display for FormatStringItem {
 pub struct FormatString(Vec<FormatStringItem>);
 
 impl FormatString {
-    pub fn parse(fmt_str: &str) -> Result<FormatString, ()> {
-        match parse_format_string(fmt_str.into()) {
-            Ok((_, fs)) => Ok(fs),
-            Err(_) => Err(()),
+    pub fn parse(fmt_str: &str) -> Result<FormatString, String> {
+        let mut chars = fmt_str.char_indices();
+        Self::from_chars(&mut chars)
+    }
+
+    fn from_chars(chars: &mut CharIndices) -> Result<FormatString, String> {
+        let mut items = Vec::new();
+        let mut s = String::new();
+        let mut prev = chars.clone();
+        while let Some((i, c)) = chars.next() {
+            match c {
+                '{' => {
+                    if !s.is_empty() {
+                        items.push(FormatStringItem::Text(s));
+                        s = String::new();
+                    }
+                    if chars.as_str().starts_with('{') {
+                        chars.next();
+                        items.push(FormatStringItem::Escape('{'));
+                    } else {
+                        *chars = prev;
+                        let f = Format::from_chars(chars)?;
+                        items.push(FormatStringItem::Format(f));
+                    }
+                }
+                '}' => {
+                    if chars.as_str().starts_with('}') {
+                        if !s.is_empty() {
+                            items.push(FormatStringItem::Text(s));
+                            s = String::new();
+                        }
+                        items.push(FormatStringItem::Escape('}'));
+                        chars.next();
+                    } else {
+                        return Err(format!("unescaped '{{' at position {}", i));
+                    }
+                }
+                _ => s.push(c),
+            }
+            prev = chars.clone();
         }
+        if !s.is_empty() {
+            items.push(FormatStringItem::Text(s));
+        }
+        Ok(FormatString(items))
     }
 
     pub fn items(&self) -> &[FormatStringItem] {
@@ -320,129 +573,14 @@ impl std::fmt::Display for FormatString {
 }
 
 
-fn parse_identifier(i: &str) -> IResult<&str, &str> {
-    recognize(tuple((take_while1(|b: char| b == '_' || b.is_ascii_alphabetic()), take_while(|b: char| b == '_' || b.is_ascii_alphanumeric()))))(i)
-}
-
-fn parse_argument(i: &str) -> IResult<&str, Argument> {
-    alt((map(digit1, |index: &str| Argument::Index(index.parse().unwrap())), map(parse_identifier, |id: &str| Argument::Name(id.to_string()))))(i)
-}
-
-fn parse_fill(i: &str) -> IResult<&str, char> {
-    map(take(1usize), |s: &str| s.chars().next().unwrap())(i)
-}
-
-fn parse_align(i: &str) -> IResult<&str, Align> {
-    map(one_of("<>^"), |a| Align::try_from(a).unwrap())(i)
-}
-
-fn parse_fill_align(i: &str) -> IResult<&str, FillAlign> {
-    alt((
-        map(tuple((parse_fill, parse_align)), |(fill, align)| FillAlign {
-            fill: Some(fill),
-            align,
-        }),
-        map(parse_align, |align| FillAlign {
-            fill: None,
-            align,
-        })
-    ))(i)
-}
-
-fn parse_sign(i: &str) -> IResult<&str, Sign> {
-    map(one_of("-+"), |s| Sign::try_from(s).unwrap())(i)
-}
-
-fn parse_alter(i: &str) -> IResult<&str, bool> {
-    map(opt(char('#')), |o| o.is_some())(i)
-}
-
-fn parse_zero(i: &str) -> IResult<&str, bool> {
-    map(opt(char('0')), |o| o.is_some())(i)
-}
-
-fn parse_count(i: &str) -> IResult<&str, Count> {
-    alt((
-        map(terminated(parse_argument, char('$')), |a| Count::Argument(a)),
-        map(digit1, |v: &str| Count::Value(v.parse().unwrap()))
-    ))(i)
-}
-
-fn parse_precision(i: &str) -> IResult<&str, Precision> {
-    alt((
-        map(char('*'), |_| Precision::Star),
-        map(parse_count, |c| Precision::Count(c))
-    ))(i)
-}
-
-fn parse_format_type(i: &str) -> IResult<&str, FormatType> {
-    map(opt(alt((
-        tag("?"),
-        tag("x?"),
-        tag("X?"),
-        tag("o"),
-        tag("x"),
-        tag("X"),
-        tag("p"),
-        tag("b"),
-        tag("e"),
-        tag("E")
-    ))), |s| FormatType::from_str(s.unwrap_or("".into())).unwrap())(i)
-}
-
-fn parse_format_spec(i: &str) -> IResult<&str, FormatSpec> {
-    let (i, _) = char(':')(i)?;
-    let (i, fill_align) = opt(parse_fill_align)(i)?;
-    let (i, sign) = opt(parse_sign)(i)?;
-    let (i, alter) = parse_alter(i)?;
-    let (i, zero) = parse_zero(i)?;
-    let (i, width) = opt(parse_count)(i)?;
-    let (i, precision) = opt(preceded(char('.'), parse_precision))(i)?;
-    let (i, format_type) = parse_format_type(i)?;
-
-    Ok((i, FormatSpec {
-        fill_align,
-        sign,
-        alter,
-        zero,
-        width,
-        precision,
-        format_type,
-    }))
-}
-
-fn parse_format(i: &str) -> IResult<&str, Format> {
-    let (i, _) = char('{')(i)?;
-    let (i, arg) = opt(parse_argument)(i)?;
-    let (i, spec) = opt(parse_format_spec)(i)?;
-    let (i, _) = char('}')(i)?;
-
-    Ok((i, Format {
-        arg: arg.unwrap_or(Argument::Next),
-        spec,
-    }))
-}
-
-fn parse_format_string(i: &str) -> IResult<&str, FormatString> {
-    map(many0(
-        alt((
-            map(is_not("{}"), |s: &str| FormatStringItem::Text(s.to_string())),
-            map(tag("{{"), |_| FormatStringItem::Escape('{')),
-            map(tag("}}"), |_| FormatStringItem::Escape('}')),
-            map(parse_format, |f| FormatStringItem::Format(f)),
-        ))
-    ), |items| FormatString(items))(i)
-}
-
-
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn format_string() {
-        let input = "aaa {{{}}} {username:#.2$?} dsd";
-        let f = parse_format_string(input.into()).unwrap().1;
+        let input = "aaa {{}} {{{}}} {username:.^#02X} {123} {:?} dsd";
+        let f = FormatString::parse(input).unwrap();
         let out = f.to_string();
         assert_eq!(input, out);
     }
